@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>2026 Training Programs</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-background-primary: #ffffff;
+      --color-background-secondary: #f5f5f4;
+      --color-background-tertiary: #f0ece8;
+      --color-text-primary: #1a1a18;
+      --color-text-secondary: #6b6b67;
+      --color-border-tertiary: rgba(0,0,0,0.12);
+      --color-border-secondary: rgba(0,0,0,0.22);
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      --border-radius-md: 8px;
+      --border-radius-lg: 12px;
+      --border-radius-xl: 16px;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --color-background-primary: #1e1e1c;
+        --color-background-secondary: #2a2a28;
+        --color-background-tertiary: #242422;
+        --color-text-primary: #f0ece8;
+        --color-text-secondary: #9e9e9a;
+        --color-border-tertiary: rgba(255,255,255,0.12);
+        --color-border-secondary: rgba(255,255,255,0.22);
+      }
+    }
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-background-tertiary);
+      color: var(--color-text-primary);
+      min-height: 100vh;
+      padding: 0;
+    }
+    #root {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 1.5rem 1rem 4rem;
+    }
+    button { font-family: inherit; }
+    input, select { font-family: inherit; }
+    * { -webkit-tap-highlight-color: transparent; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel" data-presets="react">
+    const { useState, useMemo } = React;
+
+
+// ── Race calendar ─────────────────────────────────────────────────────────
+const RACES = [
+  { date:"2026-06-20", name:"Sunburn Solstice",         type:"team",  km:0,    elev:0,    programs:[1],    note:"Team relay – 3.7km loops, Marydale Park Mount Hope. Run 4-6 loops as sustained aerobic effort." },
+  { date:"2026-07-25", name:"Tally in the Valley",      type:"race",  km:42,   elev:390,  programs:[1],    note:"6-Hour trail race – 7km loops, 130m/loop, Dundas Valley. Goal 42-50km. Nutrition practice race." },
+  { date:"2026-08-22", name:"Devil's Key – Half Beast",  type:"race",  km:33.3, elev:762,  programs:[1,2,3],note:"33.3km, ~2500ft gain, Bruce Trail, Devil's Glen. 8:30am start. 12hr cutoff. Keyhole crawl!" },
+  { date:"2026-09-13", name:"Georgina Marathon",        type:"key",   km:42.2, elev:50,   programs:[1],    note:"KEY RACE – Goal 3:30 (4:58/km). Flat BQ course Lake Simcoe, 7:30am. Follow the 3:30 bunny." },
+  { date:"2026-09-19", name:"Beaver Flat 50K",          type:"key",   km:50,   elev:2255, programs:[2],    note:"KEY RACE (Angela) – 2255m gain, 50km narrow animal trails, Saskatchewan. Gun 8am, cutoff 6:30pm (10.5hrs)." },
+  { date:"2026-10-04", name:"The Hustle 50K",           type:"race",  km:50,   elev:932,  programs:[1],    note:"50K trail, 4×12.5km loops, Pinehurst Lake (Paris ON), 233m/loop. 8:15am start. Course closes 6pm." },
+  { date:"2026-12-01", name:"Frostbite Solstice – Half",type:"race",  km:21,   elev:200,  programs:[1,3],  note:"Half Solstice – season closer, Happy Trails Racing." },
+];
+
+// ── Week tag definitions ──────────────────────────────────────────────────
+const TAG = {
+  KEY_RACE: { label:"Key Race",    color:"#a32d2d", bg:"#fcebeb" },
+  RACE:     { label:"Race",        color:"#185fa5", bg:"#e6f1fb" },
+  TEAM:     { label:"Team Race",   color:"#1d9e75", bg:"#e1f5ee" },
+  TAPER:    { label:"Taper",       color:"#854f0b", bg:"#faeeda" },
+  RECOVERY: { label:"Recovery",    color:"#0f6e56", bg:"#e1f5ee" },
+  BUILD:    { label:"Build",       color:"#533ab7", bg:"#eeedfe" },
+  PEAK:     { label:"Peak",        color:"#993556", bg:"#fbeaf0" },
+  BASE:     { label:"Base",        color:"#5f5e5a", bg:"#f1efe8" },
+};
+
+// ── Week metadata: tag + phase name + volume + sessions ───────────────────
+// Morton's neuroma note (Prog 1): road long runs capped at 36km, never on tired
+// legs after a hard trail day; trail surface preferred; max 2 road long runs >32km
+// in the whole programme. Wk5 recovery always ~50% volume drop.
+
+function buildPlan(pid) {
+  // Returns array of 30 week objects
+  const plan = [];
+
+  if (pid === 1) {
+    // ── Prog 1: Marathon Trail ─────────────────────────────────────
+    // Key: Georgina Sep 13 (wk14), Hustle Oct 4 (wk17), Frostbite Dec 1 (wk26)
+    // Supporting: Sunburn Jun 20 (wk2), Tally Jul 25 (wk7), Devil's Key Aug 22 (wk11)
+    // Scheduled recoveries: wk5 (early base cycle), wk22 (mid-maint cycle)
+    // Taper structure: wk10-11→DK race; wk12-13→Georgina; wk24-25→Frostbite
+    // Post-key recovery: wk15 (Georgina), wk18 (Hustle), wk27 (Frostbite)
+    const weeks = [
+      // wk, tag,        phase,                                        vol, Tue, Thu, Fri, Sat, Sun, notes
+      [1,  "BASE",    "Base Build",                                   62,
+        {t:"Speed",    d:"8km easy – 6×100m aerobic strides, focus on form and turnover. Morton's: run on grass if available."},
+        {t:"Hills",    d:"10km – 8×45s hill repeats at 8% grade, walk back full recovery. Soft trail surface preferred."},
+        {t:"Optional", d:"Easy 6km trail or cycling 40min. Off feet is fine."},
+        {t:"Trail Long",d:"Trail 17km – hilly, fully conversational. HR <75%."},
+        {t:"Road Long", d:"Road 17km – final 5km at marathon goal effort (4:58/km). Cushioned road shoe, watch for numbness."},
+        "Roche: 80% easy always. Koop: strides introduce speed safely. Morton's: soft surfaces, wide toe-box shoe on road days."],
+
+      [2,  "TEAM",    "Race Week: Sunburn Solstice",                  42,
+        {t:"Speed",    d:"Easy 8km – light strides only, no hard effort."},
+        {t:"Easy",     d:"Easy 6km – keep legs fresh."},
+        {t:"Rest",     d:"Rest or 20min walk."},
+        {t:"RACE",     d:"🏁 Sunburn Solstice – Team relay, 3.7km loops. Run 4-6 loops as aerobic long effort. Not a race."},
+        {t:"Recovery", d:"Easy 5km road flush, no intensity."},
+        "Fun team event. Use as quality aerobic stimulus – run by feel, no chasing."],
+
+      [3,  "BASE",    "Base Build",                                   68,
+        {t:"Speed",    d:"8km – 4×1km cruise intervals @ half-marathon effort (5:10-5:20/km)."},
+        {t:"Hills",    d:"11km – 10×45s hill repeats, add hill bounding on last 3 reps."},
+        {t:"Optional", d:"Easy 7km trail."},
+        {t:"Trail Long",d:"Trail 19km – progressive, last 3km effort."},
+        {t:"Road Long", d:"Road 18km – easy effort, no racing. Morton's: stop and stretch toes at 10km."},
+        "Uphill Athlete: aerobic threshold development. Moehl: technical footwork on trails."],
+
+      [4,  "BASE",    "Base Build",                                   78,
+        {t:"Speed",    d:"10km – 4km tempo @ half-marathon effort (5:05-5:15/km). Warm 3km, cool 3km."},
+        {t:"Hills",    d:"12km – 10×60s hill repeats, walk back recovery."},
+        {t:"Optional", d:"Easy 8km or cycling 45min."},
+        {t:"Trail Long",d:"Trail 21km – hilly, find terrain that challenges you technically."},
+        {t:"Road Long", d:"Road 20km – easy. Morton's: use metatarsal pad in road shoe."},
+        "Build week. Koop: progressive overload, feel strong not depleted."],
+
+      [5,  "RECOVERY","Recovery Week",                                50,
+        {t:"Recovery", d:"Easy 7km – fully conversational, no watch targets."},
+        {t:"Easy",     d:"Easy 8km flat – HR below 70% max."},
+        {t:"Optional", d:"Swim 30min or complete rest. Honour what your body needs."},
+        {t:"Trail Long",d:"Trail 14km easy – adventure run, no pressure."},
+        {t:"Road Long", d:"Road 12km – easy, flush the legs. ✓ Scheduled recovery week (Wk5)."},
+        "↑ Scheduled recovery cycle. Uphill Athlete: adaptation happens during rest, not during work. Morton's: extra rest for feet."],
+
+      [6,  "BUILD",   "Aerobic Development",                          72,
+        {t:"Speed",    d:"10km – 5×1km @ 4:50/km (faster than marathon goal) with 90s jog recovery."},
+        {t:"Hills",    d:"13km – 12×60s hill repeats, power-hike option on steepest."},
+        {t:"Optional", d:"Easy 8km trail."},
+        {t:"Trail Long",d:"Trail 22km – include 2 long climbs, push last 5km."},
+        {t:"Road Long", d:"Road 21km – last 5km @ marathon pace (4:58/km)."},
+        "Roche: marathon-specific intensity begins. Koop: speed before volume peaks."],
+
+      [7,  "RACE",    "Race Week: Tally in the Valley (6hr)",         50,
+        {t:"Easy",     d:"Easy 8km – light strides."},
+        {t:"Shakeout", d:"Shakeout 6km + 4×100m strides. Legs fresh."},
+        {t:"Rest",     d:"Rest + gear prep. Race nutrition packed."},
+        {t:"RACE",     d:"🏁 Tally 6hr – run 7km loops. Goal 42-50km. Practice race nutrition every loop – this is the point."},
+        {t:"Recovery", d:"Walk/easy 20min. Feet elevated. Protein and carbs in."},
+        "6-hour race as nutrition dress rehearsal. Koop: never redline – learn your fuelling rhythm."],
+
+      [8,  "RECOVERY","Recovery: Post-Tally",                         46,
+        {t:"Recovery", d:"Easy 7km – only run if body asks for it."},
+        {t:"Easy",     d:"Easy 8km flat – HR <70% max."},
+        {t:"Optional", d:"Swim or yoga 40min."},
+        {t:"Trail Long",d:"Trail 16km easy – fun run, no structure."},
+        {t:"Road Long", d:"Road 14km – easy. Morton's: monitor foot response post-race loops."},
+        "Recovery from 6hr race. Moehl: easy miles restore, hard miles right now deplete."],
+
+      [9,  "PEAK",    "Marathon Peak Block",                          83,
+        {t:"Speed",    d:"Track: 5×2km @ 4:50/km with 2min rest. Goal marathon pace = 4:58/km."},
+        {t:"Hills",    d:"16km – 12×75s hill repeats, sharp and powerful."},
+        {t:"Optional", d:"Easy 8km trail – shake out from Tuesday."},
+        {t:"Trail Long",d:"Trail 23km – hard effort, include 6km at trail marathon effort."},
+        {t:"Road Long", d:"Road 36km – longest road run. Conversational first 24km, last 8km @ 4:58/km. Morton's: cushioned shoe, metatarsal pad, assess at 20km."},
+        "PEAK WEEK. Volume ~92km. Koop: highest quality before taper. Roche: feel pleasantly tired, not broken. Morton's: first 36km road long – monitor carefully."],
+
+      [10, "TAPER",   "Taper Wk 1: Devil's Key",                     66,
+        {t:"Speed",    d:"8km – 4×1km @ 4:48/km with full recovery. Keep sharp, not fatiguing."},
+        {t:"Easy",     d:"Easy 8km trail – flat or gentle."},
+        {t:"Optional", d:"Easy 5km or rest. Prioritise sleep."},
+        {t:"Trail Long",d:"Trail 18km easy – relaxed, enjoy movement."},
+        {t:"Road Long", d:"Road 26km – first 20km easy, last 6km @ marathon pace. Morton's: no pushing through pain."},
+        "Taper wk 1 before Devil's Key. Reduce volume ~30%, maintain intensity."],
+
+      [11, "RACE",    "Race Week: Devil's Key 33.3km",                52,
+        {t:"Easy",     d:"Easy 6km + 4×200m strides."},
+        {t:"Easy",     d:"Easy 6km trail – fresh legs."},
+        {t:"Travel",   d:"Drive to Duntroon ON. Rest. Walk the start area if possible."},
+        {t:"RACE",     d:"🏁 Devil's Key 33.3km – controlled race, ~3:30-4hr. Save 10% for Georgina in 3 weeks. Crawl the keyhole!"},
+        {t:"Recovery", d:"Easy 5km road flush. Compression, nutrition, sleep."},
+        "Devil's Key is the final long race-simulation. Treat like a hard training run with a bib. Beautiful Bruce Trail."],
+
+      [12, "TAPER",   "Taper Wk 1: Georgina Marathon",               62,
+        {t:"Speed",    d:"10km – 4km @ marathon goal pace (4:58/km). Warm 3km, cool 3km. Confirm fitness."},
+        {t:"Easy",     d:"Easy 8km trail – flat."},
+        {t:"Optional", d:"Easy 5km or rest."},
+        {t:"Trail Long",d:"Trail 20km easy – no hard effort."},
+        {t:"Road Long", d:"Road 36km – second and final 36km long run. First 26km easy, final 10km @ 4:58/km. Morton's: pre-tape foot, stop at any sharp pain."},
+        "Taper wk 1. Final 36km road long run – the confidence builder. Koop: trust fitness, reduce load."],
+
+      [13, "TAPER",   "Taper Wk 2: Georgina Marathon",               48,
+        {t:"Speed",    d:"6km – 6×100m strides at goal pace feel. Legs awake, nothing more."},
+        {t:"Easy",     d:"Easy 5km flat – no hills."},
+        {t:"Optional", d:"20min easy walk or rest."},
+        {t:"Trail Long",d:"Easy trail 10km – just enough to stay loose. Sore feet = skip this."},
+        {t:"Road Long", d:"Road 8km easy + drills. Race is Sunday."},
+        "Final taper. Roche: 'The hay is in the barn.' Sleep 8hrs, carb load Sat. Kit ready Fri."],
+
+      [14, "KEY_RACE","⭐ KEY RACE: Georgina Marathon",               36,
+        {t:"Easy",     d:"Easy 5km + drills. No pressure."},
+        {t:"Easy",     d:"Easy 4km – legs loose and ready."},
+        {t:"Rest",     d:"Rest – carb load, kit packed, bed by 9pm."},
+        {t:"Easy",     d:"20min easy jog + strides. Race tomorrow."},
+        {t:"RACE",     d:"🏁 GEORGINA MARATHON – 7:30am gun. Goal 3:30. Follow 3:30 bunny (4:58/km). Flat Lake Simcoe course. YOU'VE DONE THE WORK."},
+        "Race week. Koop: execute the plan. Roche: trust training, embrace the effort. Morton's: race in proven shoe."],
+
+      [15, "RECOVERY","Recovery: Post-Georgina",                      30,
+        {t:"Recovery", d:"Easy 5km or walk – only if body asks."},
+        {t:"Easy",     d:"Easy 6km flat – HR below 65% max."},
+        {t:"Optional", d:"Swim 20min or complete rest."},
+        {t:"Trail Long",d:"Trail 10km easy – gentle movement only."},
+        {t:"Road Long", d:"Road 8km easy. Morton's: marathon takes a toll – full foot rest this week."},
+        "Post-marathon recovery. Moehl: do not rush. Full 7 days of respect for what you just did."],
+
+      [16, "BUILD",   "Rebuild + Hustle Prep",                        38,
+        {t:"Speed",    d:"Easy fartlek 7km – 5×90s surges, gentle."},
+        {t:"Hills",    d:"9km hills – aerobic, 7×45s."},
+        {t:"Optional", d:"Rest or 20min walk."},
+        {t:"Trail Long",d:"Trail 12km – enjoy the trails, no goals."},
+        {t:"Road Long", d:"Road 10km – comfortable."},
+        "Rebuild. Hustle is a 4-loop trail race – legs are recovering, trail skills rebuilding."],
+
+      [17, "RACE",    "Race Week: The Hustle 50K",                    43,
+        {t:"Easy",     d:"Easy 7km – legs finding themselves."},
+        {t:"Shakeout", d:"Easy 5km + strides. Fresh and ready."},
+        {t:"Rest",     d:"Rest – drive to Paris/Ayr area."},
+        {t:"Rest",     d:"Rest or 15min easy jog near Pinehurst."},
+        {t:"RACE",     d:"🏁 The Hustle 50K – 4×12.5km loops, 932m total gain. 8:15am. Pinehurst Lake (Paris ON). Celebration run – no time pressure."},
+        "Hustle 50K – celebration after Georgina. Singletrack, forest, Pinehurst Lake. Koop: run each loop 10% easier than feels right."],
+
+      [18, "RECOVERY","Recovery: Post-Hustle",                        32,
+        {t:"Recovery", d:"Easy 5km or walk – honour the two big races in 3 weeks."},
+        {t:"Easy",     d:"Easy 6km – flat, fully conversational."},
+        {t:"Optional", d:"Swim or yoga."},
+        {t:"Trail Long",d:"Trail 12km easy – adventure."},
+        {t:"Road Long", d:"Road 10km easy. Morton's: full foot rest."},
+        "Full recovery. Two big races in 3 weeks – respect the accumulated fatigue."],
+
+      [19, "BASE",    "Maintenance Base",                              38,
+        {t:"Speed",    d:"7km – easy fartlek, 4×2min surges."},
+        {t:"Hills",    d:"9km hill repeats – aerobic maintenance."},
+        {t:"Optional", d:"Rest or easy 20min walk."},
+        {t:"Trail Long",d:"Trail 13km."},
+        {t:"Road Long", d:"Road 12km."},
+        "Consistent aerobic base. Uphill Athlete: strength endurance maintenance."],
+
+      [20, "BASE",    "Maintenance Base",                              43,
+        {t:"Speed",    d:"8km – 3×2km cruise intervals @ marathon pace."},
+        {t:"Hills",    d:"10km – 8×60s hills."},
+        {t:"Optional", d:"Rest."},
+        {t:"Trail Long",d:"Trail 14km."},
+        {t:"Road Long", d:"Road 11km."},
+        "Maintaining base. Roche: joy runs – go somewhere new."],
+
+      [21, "BUILD",   "Frostbite Build",                              49,
+        {t:"Speed",    d:"9km – 4×1km @ 4:52/km, rebuilding sharpness."},
+        {t:"Hills",    d:"11km – 8×60s hills."},
+        {t:"Optional", d:"Rest."},
+        {t:"Trail Long",d:"Trail 16km."},
+        {t:"Road Long", d:"Road 13km."},
+        "Build toward Frostbite half. Keep sessions purposeful."],
+
+      [22, "RECOVERY","Recovery Week",                                 40,
+        {t:"Recovery", d:"Easy 7km – fully conversational."},
+        {t:"Easy",     d:"Easy 8km flat."},
+        {t:"Optional", d:"Swim 30min or complete rest."},
+        {t:"Trail Long",d:"Trail 13km easy."},
+        {t:"Road Long", d:"Road 11km easy. ✓ Scheduled recovery week (Wk22)."},
+        "↑ Scheduled mid-cycle recovery. Adaptation happens here. Morton's: extra foot care this week."],
+
+      [23, "BUILD",   "Frostbite Build",                              56,
+        {t:"Speed",    d:"10km – 5×1km @ 5:00/km with 90s rest."},
+        {t:"Hills",    d:"11km – 10×60s hills."},
+        {t:"Optional", d:"Easy 5km."},
+        {t:"Trail Long",d:"Trail 17km."},
+        {t:"Road Long", d:"Road 13km."},
+        "Final build before Frostbite taper."],
+
+      [24, "TAPER",   "Taper Wk 1: Frostbite Solstice",              46,
+        {t:"Speed",    d:"8km – 4×1km @ half-marathon effort. Keep sharp."},
+        {t:"Easy",     d:"Easy 8km – conversational."},
+        {t:"Optional", d:"Easy 5km or rest."},
+        {t:"Trail Long",d:"Trail 14km easy."},
+        {t:"Road Long", d:"Road 12km – final 3km @ half effort."},
+        "Taper wk 1. Reduce volume, maintain intensity. Trust fitness."],
+
+      [25, "TAPER",   "Taper Wk 2: Frostbite Solstice",              36,
+        {t:"Speed",    d:"6km easy + 6×100m strides."},
+        {t:"Easy",     d:"Easy 5km flat."},
+        {t:"Optional", d:"20min walk or rest."},
+        {t:"Trail Long",d:"Easy trail 8km – loose."},
+        {t:"Road Long", d:"Road 6km easy + drills. Race next week."},
+        "Final taper. Rest, sleep, carbs. Roche: you've earned this."],
+
+      [26, "RACE",    "Race Week: Frostbite Solstice Half",           30,
+        {t:"Easy",     d:"Easy 5km."},
+        {t:"Easy",     d:"Easy 4km + strides."},
+        {t:"Rest",     d:"Rest."},
+        {t:"Rest",     d:"Rest – race tomorrow."},
+        {t:"RACE",     d:"🏁 Frostbite Solstice – Half Solstice. Season closer. Run strong, run free."},
+        "Season closer. Celebrate every kilometre you've run this year."],
+
+      [27, "RECOVERY","Recovery: Post-Frostbite",                     25,
+        {t:"Recovery", d:"Easy 4km or walk."},
+        {t:"Easy",     d:"Easy 5km flat."},
+        {t:"Optional", d:"Rest."},
+        {t:"Trail Long",d:"Trail 10km easy."},
+        {t:"Road Long", d:"Road 8km – gentle close."},
+        "Post-season recovery. Reflect, rest, plan 2027."],
+
+      [28, "BASE",    "Year-End Aerobic",                             30,
+        {t:"Easy",     d:"Easy 6km."},
+        {t:"Easy",     d:"Easy 6km."},
+        {t:"Optional", d:"Rest."},
+        {t:"Trail Long",d:"Trail 12km – winter trail fun."},
+        {t:"Road Long", d:"Road 10km easy."},
+        "Off-season aerobic maintenance. Run for joy."],
+
+      [29, "BASE",    "Year-End Aerobic",                             32,
+        {t:"Easy",     d:"Easy 6km."},
+        {t:"Easy",     d:"Easy 6km."},
+        {t:"Optional", d:"Rest."},
+        {t:"Trail Long",d:"Trail 12km."},
+        {t:"Road Long", d:"Road 10km."},
+        "Keep moving, stay happy."],
+
+      [30, "BASE",    "Year-End Easy",                                30,
+        {t:"Easy",     d:"Easy 5km."},
+        {t:"Easy",     d:"Easy 5km."},
+        {t:"Optional", d:"Rest."},
+        {t:"Trail Long",d:"Trail 10km."},
+        {t:"Road Long", d:"Road 8km."},
+        "Final week of 2026. Well done."],
+    ];
+    weeks.forEach(([wNum,tag,phase,vol,tue,thu,fri,sat,sun,notes]) => {
+      plan.push({ wNum, tag, phase, vol, sessions:{tue,thu,fri,sat,sun,notes} });
+    });
+  }
+
+  if (pid === 2) {
+    // ── Prog 2: Elevation / Beaver Flat (Angela) ────────────────────
+    // Key: Beaver Flat Sep 19 (wk15)
+    // Supporting: Sunburn Jun 20 (wk2 team), Devil's Key Aug 22 (wk11 race sim)
+    // No Tally, no Hustle, no Georgina
+    // Scheduled recovery: wk4, wk22
+    // DK taper: wk9-10, DK race: wk11, post-DK recovery: wk12
+    // Beaver taper: wk13-14, Beaver race: wk15, recovery: wk16
+    const weeks = [
+      [1,  "BASE",    "Elevation Base Build",                         50,
+        {t:"Recovery", d:"Easy 8km flat – aerobic base, HR <75% max."},
+        {t:"Hills",    d:"10km – 8×60s at 10-12% grade. Walk back fully. Seek real climbs."},
+        {t:"Optional", d:"Hike 60-90min with elevation if accessible – Escarpment, Dundas, Rattlesnake."},
+        {t:"Trail Long",d:"Trail 16km – seek maximum elevation available near Burlington. Power-hike every steep section."},
+        {t:"Road Long", d:"Road 13km – conversational, aerobic base."},
+        "Uphill Athlete: every metre of vert gained in training matters for Beaver Flat's 2255m. Slow down to build vertical."],
+
+      [2,  "TEAM",    "Race Week: Sunburn Solstice",                  36,
+        {t:"Recovery", d:"Easy 6km flat."},
+        {t:"Easy",     d:"Easy 5km."},
+        {t:"Rest",     d:"Rest."},
+        {t:"RACE",     d:"🏁 Sunburn Solstice – Easy relay team effort. 3-4 loops max. No racing."},
+        {t:"Recovery", d:"Easy 5km flat."},
+        "Low-key team race. Treat as quality aerobic day only."],
+
+      [3,  "BUILD",   "Vertical Development",                         55,
+        {t:"Recovery", d:"Easy 8km flat."},
+        {t:"Hills",    d:"13km – 2×600m sustained climb, full descent recovery."},
+        {t:"Optional", d:"Hiking with poles 2hrs – simulate Beaver Flat terrain."},
+        {t:"Trail Long",d:"Trail 22km – Niagara Escarpment or Dundas Valley. Maximise vertical gain."},
+        {t:"Road Long", d:"Road 16km – aerobic base."},
+        "Moehl: time on feet > pace. Focus on climbing efficiency. Power-hike rhythm is a skill."],
+
+      [4,  "RECOVERY","Recovery Week",                                38,
+        {t:"Recovery", d:"Easy 6km – fully conversational."},
+        {t:"Easy",     d:"Easy 7km – HR below 70% max."},
+        {t:"Optional", d:"Swim or complete rest. ✓ Scheduled recovery week (Wk4)."},
+        {t:"Trail Long",d:"Trail 13km easy – gentle hills only."},
+        {t:"Road Long", d:"Road 11km easy."},
+        "↑ Scheduled recovery cycle. Adaptation happens during rest. Let the vertical gains consolidate."],
+
+      [5,  "BUILD",   "Vertical Development",                         54,
+        {t:"Recovery", d:"Easy 8km."},
+        {t:"Hills",    d:"14km – 2×800m sustained climb, full descent."},
+        {t:"Optional", d:"Hike 2hrs with poles."},
+        {t:"Trail Long",d:"Trail 24km – Escarpment, aim for 500m vert gain."},
+        {t:"Road Long", d:"Road 17km – aerobic."},
+        "Build vertical accumulation. Koop: back-to-back Sat/Sun creates Beaver Flat fatigue simulation."],
+
+      [6,  "BUILD",   "Specific Elevation Block",                     62,
+        {t:"Recovery", d:"Easy 8km."},
+        {t:"Hills",    d:"15km – 3×800m sustained climbs. Full walk-back between."},
+        {t:"Optional", d:"Hike 2.5hrs with poles – max elevation."},
+        {t:"Trail Long",d:"Trail 26km – Rattlesnake Point or Escarpment, aim for 600m vert."},
+        {t:"Road Long", d:"Road 18km – comfortable aerobic."},
+        "Uphill Athlete: vertical km accumulation. Every steep metre is specific Beaver Flat prep."],
+
+      [7,  "PEAK",    "Elevation Peak Block",                         71,
+        {t:"Recovery", d:"Easy 10km recovery run."},
+        {t:"Hills",    d:"16km – 3 climbs of ~400m gain each. Beaver Flat simulation (Horseshoe segment)."},
+        {t:"Optional", d:"Hike 3hrs with poles – max vert. This is training."},
+        {t:"Trail Long",d:"Trail 28km – Escarpment, aim for 700m+ vert gain in one run."},
+        {t:"Road Long", d:"Road 18km – aerobic, keep HR honest."},
+        "Koop: race-specific vertical intervals. Back-to-back builds Beaver Flat-specific fatigue tolerance."],
+
+      [8,  "PEAK",    "Elevation Peak Block",                         80,
+        {t:"Recovery", d:"Easy 10km."},
+        {t:"Hills",    d:"16km – Beaver Flat sim: 3 major climbs + descents. Hike up, run down."},
+        {t:"Optional", d:"Hike 2hrs."},
+        {t:"Trail Long",d:"Trail 30km – longest trail long. Max vert, power-hike all steep sections."},
+        {t:"Road Long", d:"Road 18km – easy recovery run."},
+        "Peak volume week. Moehl: time on feet is the key metric for 50K ultra prep."],
+
+      [9,  "TAPER",   "Taper Wk 1: Devil's Key",                     64,
+        {t:"Recovery", d:"Easy 8km – flat, aerobic only."},
+        {t:"Hills",    d:"12km – 8×60s hill repeats, keep it aerobic."},
+        {t:"Optional", d:"Easy hike 60min or rest."},
+        {t:"Trail Long",d:"Trail 18km – relaxed, no pushing."},
+        {t:"Road Long", d:"Road 14km – easy aerobic."},
+        "Taper wk 1 before Devil's Key. ~30% volume drop. Stay sharp on Thursday hills."],
+
+      [10, "TAPER",   "Taper Wk 2: Devil's Key",                     50,
+        {t:"Recovery", d:"Easy 6km."},
+        {t:"Easy",     d:"Easy 6km + 4 hill strides."},
+        {t:"Optional", d:"20min easy walk."},
+        {t:"Trail Long",d:"Trail 12km easy."},
+        {t:"Road Long", d:"Road 10km easy + 4 hill strides."},
+        "Taper wk 2. Legs fresh. Trust the vertical kilometres banked."],
+
+      [11, "RACE",    "Race Week: Devil's Key (Beaver Flat Sim)",     46,
+        {t:"Easy",     d:"Easy 6km + strides."},
+        {t:"Shakeout", d:"Easy 5km – stay loose."},
+        {t:"Travel",   d:"Drive to Duntroon. Rest."},
+        {t:"RACE",     d:"🏁 Devil's Key 33.3km – race hard. ~2500ft gain. Best Beaver Flat simulation available. Crawl the keyhole!"},
+        {t:"Recovery", d:"Easy 5km flat."},
+        "Treat as a race simulation. Learn what your body does at 25km into a hard hilly race. This is data for Beaver Flat."],
+
+      [12, "RECOVERY","Recovery: Post-Devil's Key",                   36,
+        {t:"Recovery", d:"Easy 5km – only if you feel like it."},
+        {t:"Easy",     d:"Easy 6km flat."},
+        {t:"Optional", d:"Swim or gentle yoga."},
+        {t:"Trail Long",d:"Trail 12km easy – no vert focus."},
+        {t:"Road Long", d:"Road 10km easy."},
+        "Post-race recovery. Extract lessons from Devil's Key race. Apply to Beaver Flat taper mindset."],
+
+      [13, "TAPER",   "Taper Wk 1: Beaver Flat 50K",                 52,
+        {t:"Recovery", d:"Easy 8km – aerobic, flat."},
+        {t:"Hills",    d:"10km – 6×60s hill strides. Stay sharp."},
+        {t:"Optional", d:"Easy hike 45min."},
+        {t:"Trail Long",d:"Trail 16km – relaxed, one moderate climb."},
+        {t:"Road Long", d:"Road 14km – easy."},
+        "Taper wk 1 for Beaver Flat. Volume drops ~35%. Course study: Horseshoe 11.2km/450m, Spring Coulee, Weetman, Goodwin, Beaver Banter."],
+
+      [14, "TAPER",   "Taper Wk 2: Beaver Flat 50K",                 42,
+        {t:"Easy",     d:"Easy 6km + 4 hill strides."},
+        {t:"Easy",     d:"Easy 5km flat."},
+        {t:"Travel",   d:"Travel to Saskatchewan. Rest. Hydrate. Study aid station cutoffs."},
+        {t:"Shakeout", d:"15min easy jog at race site. Walk Horseshoe trail section if possible."},
+        {t:"Rest",     d:"REST. Prep drop bag. Sleep 8hrs."},
+        "Final taper. Review: gun 8am, Barlow AS@11km, Windsor Knot@16km (cutoff 11:30am), Wheatman@23km (1pm), Goodwin@33km (3:30pm), Knock Knock@43.5km (5:30pm), Finish 6:30pm."],
+
+      [15, "KEY_RACE","⭐ KEY RACE: Beaver Flat 50K",                 0,
+        {t:"Rest",     d:"Travel day / setup. Rest completely."},
+        {t:"Rest",     d:"Rest. Carb load. Sleep."},
+        {t:"Rest",     d:"Rest."},
+        {t:"Rest",     d:"Rest. Final prep. Early bedtime."},
+        {t:"RACE",     d:"🏁 BEAVER FLAT 50K – 8am gun. 2255m gain. Power-hike EVERY climb. Eat at every aid station. Start conservative on Horseshoe. You are ready, Angela."},
+        "Race day strategy: Koop: first 16km are deceptively friendly – the real race starts at Weetman. Power-hike all uphills, run all flats and runnable downs. Eat early, eat often."],
+
+      [16, "RECOVERY","Recovery: Post-Beaver Flat",                   28,
+        {t:"Recovery", d:"Walk or easy 3-4km only."},
+        {t:"Easy",     d:"Easy 5km flat – celebrate with every step."},
+        {t:"Optional", d:"Complete rest or gentle swim."},
+        {t:"Trail Long",d:"Trail 10km easy – just moving."},
+        {t:"Road Long", d:"Road 8km easy."},
+        "Post-50K recovery. Moehl: do not rush. A 50K ultra with 2255m gain deserves 2-3 full weeks of respect."],
+
+      [17, "BASE",    "Post-Race Easy Base",                          32,
+        {t:"Easy",     d:"Easy 6km."},
+        {t:"Easy",     d:"Easy 6km – gentle hills."},
+        {t:"Optional", d:"Cross-train or rest."},
+        {t:"Trail Long",d:"Trail 13km – fun trails."},
+        {t:"Road Long", d:"Road 10km."},
+        "Keep moving gently. Reflect on Beaver Flat. Start dreaming about 2027."],
+
+      [18, "BASE",    "Post-Race Easy Base",                          36,
+        {t:"Easy",     d:"Easy 7km."},
+        {t:"Easy",     d:"Easy 7km – light hills."},
+        {t:"Optional", d:"Hike 60min."},
+        {t:"Trail Long",d:"Trail 15km."},
+        {t:"Road Long", d:"Road 11km."},
+        "Gradual return to normal volume. Roche: run with joy, no metrics."],
+
+      [19, "BASE",    "Aerobic Maintenance",                          41,
+        {t:"Easy",     d:"Easy 8km."},
+        {t:"Hills",    d:"10km – 8×45s easy hills."},
+        {t:"Optional", d:"Hike 60min."},
+        {t:"Trail Long",d:"Trail 17km."},
+        {t:"Road Long", d:"Road 12km."},
+        "Consistent maintenance. Keep vertical habit going."],
+
+      [20, "BASE",    "Aerobic Maintenance",                          47,
+        {t:"Easy",     d:"Easy 8km."},
+        {t:"Hills",    d:"10km – 8×60s hills."},
+        {t:"Optional", d:"Hike or cross-train."},
+        {t:"Trail Long",d:"Trail 18km."},
+        {t:"Road Long", d:"Road 12km."},
+        "Uphill Athlete: maintain the vertical habit year-round."],
+
+      [21, "BASE",    "Aerobic Maintenance",                          52,
+        {t:"Easy",     d:"Easy 8km."},
+        {t:"Hills",    d:"11km – 10×60s hills."},
+        {t:"Optional", d:"Hike or rest."},
+        {t:"Trail Long",d:"Trail 20km."},
+        {t:"Road Long", d:"Road 12km."},
+        "Consistent base. Plan 2027 goals."],
+
+      [22, "RECOVERY","Recovery Week",                                38,
+        {t:"Recovery", d:"Easy 6km."},
+        {t:"Easy",     d:"Easy 7km flat."},
+        {t:"Optional", d:"Rest. ✓ Scheduled recovery (Wk22)."},
+        {t:"Trail Long",d:"Trail 12km easy."},
+        {t:"Road Long", d:"Road 10km easy."},
+        "↑ Scheduled mid-cycle recovery. Rest and reflect on the season."],
+
+      [23, "BASE",    "Year-End Build",                               48,
+        {t:"Easy",     d:"Easy 8km."},
+        {t:"Hills",    d:"10km – 8×60s hills."},
+        {t:"Optional", d:"Hike."},
+        {t:"Trail Long",d:"Trail 17km."},
+        {t:"Road Long", d:"Road 12km."},
+        "Maintain aerobic base through winter."],
+
+      [24, "BASE",    "Aerobic Maintenance",                          44,
+        {t:"Easy",     d:"Easy 7km."},
+        {t:"Hills",    d:"10km hills."},
+        {t:"Optional", d:"Hike."},
+        {t:"Trail Long",d:"Trail 16km."},
+        {t:"Road Long", d:"Road 11km."},
+        "Consistent base."],
+
+      [25, "BASE",    "Aerobic Maintenance",                          40,
+        {t:"Easy",     d:"Easy 7km."},
+        {t:"Hills",    d:"10km hills."},
+        {t:"Optional", d:"Rest."},
+        {t:"Trail Long",d:"Trail 14km."},
+        {t:"Road Long", d:"Road 11km."},
+        "Stay consistent."],
+
+      [26, "BASE",    "Year-End Easy",                                36,
+        {t:"Easy",     d:"Easy 6km."},
+        {t:"Hills",    d:"8km easy hills."},
+        {t:"Optional", d:"Rest."},
+        {t:"Trail Long",d:"Trail 14km."},
+        {t:"Road Long", d:"Road 10km."},
+        "Aerobic maintenance to year end."],
+
+      [27, "BASE",    "Year-End Easy",                                30,
+        {t:"Easy",     d:"Easy 6km."},
+        {t:"Easy",     d:"Easy 6km."},
+        {t:"Optional", d:"Rest."},
+        {t:"Trail Long",d:"Trail 12km."},
+        {t:"Road Long", d:"Road 10km."},
+        "Keep moving, plan 2027."],
+
+      [28, "BASE",    "Year-End Easy",                                28,
+        {t:"Easy",     d:"Easy 5km."},
+        {t:"Easy",     d:"Easy 5km."},
+        {t:"Optional", d:"Rest."},
+        {t:"Trail Long",d:"Trail 12km."},
+        {t:"Road Long", d:"Road 10km."},
+        ""],
+      [29, "BASE",    "Year-End Easy",                                24,
+        {t:"Easy",     d:"Easy 5km."},
+        {t:"Easy",     d:"Easy 5km."},
+        {t:"Optional", d:"Rest."},
+        {t:"Trail Long",d:"Trail 10km."},
+        {t:"Road Long", d:"Road 8km."},
+        ""],
+      [30, "BASE",    "Year-End Easy",                                20,
+        {t:"Easy",     d:"Easy 4km."},
+        {t:"Easy",     d:"Easy 4km."},
+        {t:"Optional", d:"Rest."},
+        {t:"Trail Long",d:"Trail 10km."},
+        {t:"Road Long", d:"Road 8km."},
+        "Final week. Happy New Year."],
+    ];
+    weeks.forEach(([wNum,tag,phase,vol,tue,thu,fri,sat,sun,notes]) => {
+      plan.push({ wNum, tag, phase, vol, sessions:{tue,thu,fri,sat,sun,notes} });
+    });
+  }
+
+  if (pid === 3) {
+    // ── Prog 3: Maintenance / Devil's Key ──────────────────────────
+    // Key: Devil's Key Aug 22 (wk11)
+    // Supporting: Frostbite Solstice Half Dec 1 (wk26)
+    // No Sunburn, no Tally, no Georgina, no Hustle, no Beaver Flat
+    // Scheduled recovery: wk4, wk22
+    // DK taper: wk9-10, DK race: wk11, post-DK recovery: wk12
+    // Frostbite taper: wk24-25, race: wk26, recovery: wk27
+    const weeks = [
+      [1,  "BASE",    "Active Maintenance",                           44,
+        {t:"Recovery", d:"Easy 8km – conversational, no pressure."},
+        {t:"Hills",    d:"8km – 7×45s hills, aerobic intensity only."},
+        {t:"Optional", d:"Easy 5km or cross-train 30min."},
+        {t:"Trail Long",d:"Trail 14km – enjoy the trails, no watch goals."},
+        {t:"Road Long", d:"Road 12km – comfortable."},
+        "Roche: consistency over intensity. Stay healthy, stay consistent, stay happy."],
+
+      [2,  "BASE",    "Active Maintenance",                           50,
+        {t:"Recovery", d:"Easy 8km."},
+        {t:"Hills",    d:"9km – 8×45s hills."},
+        {t:"Optional", d:"Easy 5km."},
+        {t:"Trail Long",d:"Trail 16km."},
+        {t:"Road Long", d:"Road 12km."},
+        "Build gently. No rush."],
+
+      [3,  "BUILD",   "Devil's Key Prep",                             56,
+        {t:"Speed",    d:"Easy fartlek 8km – 6×90s surges, not all-out. Feel athletic."},
+        {t:"Hills",    d:"10km – 9×60s hills, power-hike option on steepest."},
+        {t:"Optional", d:"Easy 6km or yoga 40min."},
+        {t:"Trail Long",d:"Trail 17km – include 1 long sustained climb."},
+        {t:"Road Long", d:"Road 13km – comfortable."},
+        "Devil's Key build. Uphill Athlete: climbing efficiency. Practice power-hiking rhythm."],
+
+      [4,  "RECOVERY","Recovery Week",                                38,
+        {t:"Recovery", d:"Easy 6km – fully conversational."},
+        {t:"Easy",     d:"Easy 7km flat."},
+        {t:"Optional", d:"Swim 30min or rest. ✓ Scheduled recovery (Wk4)."},
+        {t:"Trail Long",d:"Trail 12km easy."},
+        {t:"Road Long", d:"Road 10km easy."},
+        "↑ Scheduled recovery cycle. Moehl: easy miles restore. Adaptation happens here."],
+
+      [5,  "BUILD",   "Devil's Key Prep",                             58,
+        {t:"Speed",    d:"8km – 5×90s surges on hilly trail."},
+        {t:"Hills",    d:"11km – 10×60s, power-hike."},
+        {t:"Optional", d:"Easy 6km."},
+        {t:"Trail Long",d:"Trail 18km – include 2 long climbs."},
+        {t:"Road Long", d:"Road 14km."},
+        "Build. Koop: progressive overload without burning out."],
+
+      [6,  "BUILD",   "Devil's Key Prep",                             66,
+        {t:"Speed",    d:"9km – 3×2km cruise intervals @ comfortable hard."},
+        {t:"Hills",    d:"12km – 10×60s hills."},
+        {t:"Optional", d:"Easy 6km trail."},
+        {t:"Trail Long",d:"Trail 19km – technical terrain preferred."},
+        {t:"Road Long", d:"Road 15km."},
+        "Steady build. Practice descending technique for Devil's Key's quad-crushing descents."],
+
+      [7,  "PEAK",    "Devil's Key Peak Block",                       75,
+        {t:"Speed",    d:"9km – fartlek with 6×3min hard surges on trail."},
+        {t:"Hills",    d:"12km – 12×60s, sustained climbing."},
+        {t:"Optional", d:"Easy 6km."},
+        {t:"Trail Long",d:"Trail 21km – seek technical hilly terrain, practice steep descents."},
+        {t:"Road Long", d:"Road 16km."},
+        "Peak block. Moehl: technical trail skills. Practice crawl position for the Devil's Key keyhole!"],
+
+      [8,  "PEAK",    "Devil's Key Peak Block",                       75,
+        {t:"Speed",    d:"9km – 4×2km cruise intervals."},
+        {t:"Hills",    d:"13km – 12×60s hills + 1 long sustained 600m climb."},
+        {t:"Optional", d:"Easy 6km."},
+        {t:"Trail Long",d:"Trail 22km – hardest local trail terrain. Max vert."},
+        {t:"Road Long", d:"Road 16km."},
+        "Final peak week before taper. You've built the fitness."],
+
+      [9,  "TAPER",   "Taper Wk 1: Devil's Key",                     60,
+        {t:"Speed",    d:"8km – 4×1km @ comfortable hard, full recovery. Keep sharp."},
+        {t:"Easy",     d:"Easy 8km – flat, conversational."},
+        {t:"Optional", d:"Easy 5km or rest."},
+        {t:"Trail Long",d:"Trail 14km – relaxed, gentle hills."},
+        {t:"Road Long", d:"Road 12km – easy."},
+        "Taper wk 1. Volume drops ~25%. Roche: trust training."],
+
+      [10, "TAPER",   "Taper Wk 2: Devil's Key",                     48,
+        {t:"Speed",    d:"6km easy + 6×100m strides. Awake, not tired."},
+        {t:"Easy",     d:"Easy 5km flat."},
+        {t:"Optional", d:"20min walk or rest."},
+        {t:"Trail Long",d:"Easy trail 8km – stay loose."},
+        {t:"Road Long", d:"Road 6km easy + drills."},
+        "Final taper. Sleep, eat well. Read the Devil's Key course description again. You're ready."],
+
+      [11, "KEY_RACE","⭐ KEY RACE: Devil's Key 33.3km",              30,
+        {t:"Easy",     d:"Easy 5km + strides."},
+        {t:"Easy",     d:"Easy 4km – loose."},
+        {t:"Travel",   d:"Drive to Duntroon. Rest. Kit check."},
+        {t:"RACE",     d:"🏁 DEVIL'S KEY 33.3km – YOUR KEY RACE. Climb to the top of Devil's Glen ski hill. Crawl the keyhole! Run the Bruce Trail. Earn that medal."},
+        {t:"Recovery", d:"Easy 3-4km walk or gentle jog. Celebrate every step."},
+        "Your race. Run with joy and adventure. Moehl: this is what all the training is for."],
+
+      [12, "RECOVERY","Recovery: Post-Devil's Key",                   26,
+        {t:"Recovery", d:"Easy 4km or walk."},
+        {t:"Easy",     d:"Easy 5km flat."},
+        {t:"Optional", d:"Swim or rest."},
+        {t:"Trail Long",d:"Trail 10km easy."},
+        {t:"Road Long", d:"Road 8km easy."},
+        "Recovery. Honour the effort. Let the legs fully heal before building again."],
+
+      [13, "BASE",    "Maintenance Base",                             40,
+        {t:"Easy",     d:"Easy 6km."},
+        {t:"Easy",     d:"Easy 7km – light hills."},
+        {t:"Optional", d:"Cross-train or rest."},
+        {t:"Trail Long",d:"Trail 14km – fun adventure."},
+        {t:"Road Long", d:"Road 12km."},
+        "Maintenance. Keep it easy and enjoyable."],
+
+      [14, "BASE",    "Maintenance Base",                             44,
+        {t:"Easy",     d:"Easy 7km."},
+        {t:"Hills",    d:"8km – 6×45s easy hills."},
+        {t:"Optional", d:"Easy 5km."},
+        {t:"Trail Long",d:"Trail 14km."},
+        {t:"Road Long", d:"Road 12km."},
+        ""],
+      [15, "BASE",    "Maintenance Base",                             48,
+        {t:"Speed",    d:"Easy fartlek 7km – 5×90s surges."},
+        {t:"Hills",    d:"9km hills."},
+        {t:"Optional", d:"Easy 5km."},
+        {t:"Trail Long",d:"Trail 15km."},
+        {t:"Road Long", d:"Road 12km."},
+        ""],
+      [16, "BASE",    "Maintenance Base",                             50,
+        {t:"Speed",    d:"8km – 3×2km easy cruise intervals."},
+        {t:"Hills",    d:"10km hills."},
+        {t:"Optional", d:"Easy 5km."},
+        {t:"Trail Long",d:"Trail 16km."},
+        {t:"Road Long", d:"Road 12km."},
+        "Steady maintenance through fall."],
+
+      [17, "BASE",    "Maintenance Base",                             52,
+        {t:"Speed",    d:"8km fartlek."},
+        {t:"Hills",    d:"10km hills."},
+        {t:"Optional", d:"Easy 5km."},
+        {t:"Trail Long",d:"Trail 17km."},
+        {t:"Road Long", d:"Road 13km."},
+        ""],
+      [18, "BASE",    "Maintenance Base",                             54,
+        {t:"Speed",    d:"8km fartlek."},
+        {t:"Hills",    d:"10km hills."},
+        {t:"Optional", d:"Easy 5km."},
+        {t:"Trail Long",d:"Trail 17km."},
+        {t:"Road Long", d:"Road 13km."},
+        ""],
+      [19, "BUILD",   "Frostbite Build",                              60,
+        {t:"Speed",    d:"9km – 4×1km @ half-marathon effort."},
+        {t:"Hills",    d:"11km – 10×60s hills."},
+        {t:"Optional", d:"Easy 5km."},
+        {t:"Trail Long",d:"Trail 18km."},
+        {t:"Road Long", d:"Road 14km."},
+        "Frostbite build begins. Uphill Athlete: strength endurance maintenance."],
+
+      [20, "BUILD",   "Frostbite Build",                              66,
+        {t:"Speed",    d:"9km – 5×1km @ half-marathon effort."},
+        {t:"Hills",    d:"11km hills."},
+        {t:"Optional", d:"Easy 6km."},
+        {t:"Trail Long",d:"Trail 18km."},
+        {t:"Road Long", d:"Road 15km."},
+        ""],
+      [21, "BUILD",   "Frostbite Build",                              72,
+        {t:"Speed",    d:"10km – 3×2km @ half-marathon pace."},
+        {t:"Hills",    d:"12km hills."},
+        {t:"Optional", d:"Easy 6km."},
+        {t:"Trail Long",d:"Trail 19km."},
+        {t:"Road Long", d:"Road 16km."},
+        "Building to Frostbite peak."],
+
+      [22, "RECOVERY","Recovery Week",                                48,
+        {t:"Recovery", d:"Easy 6km."},
+        {t:"Easy",     d:"Easy 7km flat."},
+        {t:"Optional", d:"Rest. ✓ Scheduled recovery (Wk22)."},
+        {t:"Trail Long",d:"Trail 12km easy."},
+        {t:"Road Long", d:"Road 11km easy."},
+        "↑ Scheduled recovery. Adapt, rest, refocus for Frostbite build close."],
+
+      [23, "BUILD",   "Frostbite Build",                              62,
+        {t:"Speed",    d:"10km – 4×1km @ half-marathon effort."},
+        {t:"Hills",    d:"11km hills."},
+        {t:"Optional", d:"Easy 5km."},
+        {t:"Trail Long",d:"Trail 19km."},
+        {t:"Road Long", d:"Road 15km."},
+        "Final build before Frostbite taper."],
+
+      [24, "TAPER",   "Taper Wk 1: Frostbite Solstice",              50,
+        {t:"Speed",    d:"8km – 4×1km @ half-marathon effort. Stay sharp."},
+        {t:"Easy",     d:"Easy 8km – conversational."},
+        {t:"Optional", d:"Easy 5km or rest."},
+        {t:"Trail Long",d:"Trail 14km easy."},
+        {t:"Road Long", d:"Road 11km – final 2km at half effort."},
+        "Taper wk 1. Reduce volume ~25%, keep intensity."],
+
+      [25, "TAPER",   "Taper Wk 2: Frostbite Solstice",              40,
+        {t:"Speed",    d:"6km easy + 6×100m strides."},
+        {t:"Easy",     d:"Easy 5km flat."},
+        {t:"Optional", d:"20min walk."},
+        {t:"Trail Long",d:"Easy trail 8km."},
+        {t:"Road Long", d:"Road 6km easy + drills."},
+        "Final taper. Roche: the hay is in the barn. Sleep, rest, enjoy."],
+
+      [26, "RACE",    "Race Week: Frostbite Solstice Half",           30,
+        {t:"Easy",     d:"Easy 5km."},
+        {t:"Easy",     d:"Easy 4km + strides."},
+        {t:"Rest",     d:"Rest."},
+        {t:"Rest",     d:"Rest."},
+        {t:"RACE",     d:"🏁 Frostbite Solstice – Half. Season closer. Run free, run strong."},
+        "Close the season. Reflect on Devil's Key and everything you've built."],
+
+      [27, "RECOVERY","Recovery: Post-Frostbite",                     24,
+        {t:"Recovery", d:"Easy 4km or walk."},
+        {t:"Easy",     d:"Easy 4km."},
+        {t:"Optional", d:"Rest."},
+        {t:"Trail Long",d:"Trail 8km – gentle."},
+        {t:"Road Long", d:"Road 8km easy."},
+        "End of season. Rest, plan 2027."],
+
+      [28, "BASE",    "Year-End Easy",                                28,
+        {t:"Easy",     d:"Easy 5km."},
+        {t:"Easy",     d:"Easy 5km."},
+        {t:"Optional", d:"Rest."},
+        {t:"Trail Long",d:"Trail 10km."},
+        {t:"Road Long", d:"Road 8km."},
+        ""],
+      [29, "BASE",    "Year-End Easy",                                30,
+        {t:"Easy",     d:"Easy 4km."},
+        {t:"Easy",     d:"Easy 4km."},
+        {t:"Optional", d:"Rest."},
+        {t:"Trail Long",d:"Trail 10km."},
+        {t:"Road Long", d:"Road 8km."},
+        ""],
+      [30, "BASE",    "Year-End Easy",                                28,
+        {t:"Easy",     d:"Easy 4km."},
+        {t:"Easy",     d:"Easy 4km."},
+        {t:"Optional", d:"Rest."},
+        {t:"Trail Long",d:"Trail 8km."},
+        {t:"Road Long", d:"Road 8km."},
+        "Final week of 2026. Happy New Year."],
+    ];
+    weeks.forEach(([wNum,tag,phase,vol,tue,thu,fri,sat,sun,notes]) => {
+      plan.push({ wNum, tag, phase, vol, sessions:{tue,thu,fri,sat,sun,notes} });
+    });
+  }
+
+  return plan;
+}
+
+// ── Static week dates ─────────────────────────────────────────────────────
+function getWeeks() {
+  const start = new Date("2026-06-08");
+  const weeks = [];
+  for (let i = 0; i < 30; i++) {
+    const s = new Date(start); s.setDate(s.getDate() + i * 7);
+    const e = new Date(s); e.setDate(e.getDate() + 6);
+    weeks.push({ start: s, end: e });
+  }
+  return weeks;
+}
+const WEEK_DATES = getWeeks();
+
+function fmtDate(d) { return d.toLocaleDateString("en-CA", { month:"short", day:"numeric" }); }
+
+function raceInWeek(wNum, pid) {
+  const { start, end } = WEEK_DATES[wNum - 1];
+  return RACES.filter(r => {
+    const rd = new Date(r.date);
+    return rd >= start && rd <= end && r.programs.includes(pid);
+  });
+}
+
+// ── Color palette ─────────────────────────────────────────────────────────
+const PROG_COLOR = {
+  1: { bg:"#e6f1fb", border:"#185fa5", text:"#0c447c", accent:"#378add" },
+  2: { bg:"#eaf3de", border:"#3b6d11", text:"#27500a", accent:"#639922" },
+  3: { bg:"#faeeda", border:"#854f0b", text:"#633806", accent:"#ba7517" },
+};
+const SESSION_COLOR = {
+  Speed:"#185fa5", Hills:"#3b6d11", "Trail Long":"#854f0b",
+  "Road Long":"#533ab7", RACE:"#a32d2d", Recovery:"#5f5e5a",
+  Easy:"#0f6e56", Optional:"#888780", Rest:"#b4b2a9",
+  Shakeout:"#0f6e56", Travel:"#888780", Hike:"#ba7517",
+};
+
+// ── Main component ────────────────────────────────────────────────────────
+function TrainingPlan() {
+  const [activeProgram, setActiveProgram] = useState(1);
+  const [expandedWeek, setExpandedWeek] = useState(null);
+
+  const color = PROG_COLOR[activeProgram];
+
+  const programData = useMemo(() => {
+    const plan = buildPlan(activeProgram);
+    return plan.map(w => ({
+      ...w,
+      ...WEEK_DATES[w.wNum - 1],
+      races: raceInWeek(w.wNum, activeProgram),
+    }));
+  }, [activeProgram]);
+
+  const maxVol = Math.max(...programData.map(w => w.vol || 0));
+
+  const tagCounts = useMemo(() => {
+    const c = {};
+    programData.forEach(w => { c[w.tag] = (c[w.tag]||0)+1; });
+    return c;
+  }, [programData]);
+
+  const progMeta = {
+    1: { icon:"🏃", label:"Marathon Trail", sub:"Georgina Mar (Sep 13, goal 3:30) · Hustle 50K (Oct 4) · Devil's Key (Aug 22) · Frostbite Half (Dec 1)" },
+    2: { icon:"⛰️", label:"Elevation 50K (Angela)", sub:"Beaver Flat 50K (Sep 19, 2255m) · Devil's Key race sim (Aug 22)" },
+    3: { icon:"🛤️", label:"Maintenance", sub:"Devil's Key KEY RACE (Aug 22) · Frostbite Half (Dec 1)" },
+  };
+
+  return (
+    <div style={{ fontFamily:"var(--font-sans)", padding:"1.5rem 0", color:"var(--color-text-primary)" }}>
+      <h2 style={{ fontSize:22, fontWeight:500, margin:"0 0 0.25rem" }}>2026 Training Programs</h2>
+      <p style={{ fontSize:13, color:"var(--color-text-secondary)", margin:"0 0 1.25rem" }}>
+        June 8 – Dec 31 · 30 weeks · Monday start · Distances km · Roche · Uphill Athlete · Moehl · Koop
+      </p>
+
+      {/* Program tabs */}
+      <div style={{ display:"flex", gap:8, marginBottom:"1.25rem", flexWrap:"wrap" }}>
+        {[1,2,3].map(p => {
+          const c = PROG_COLOR[p]; const active = activeProgram===p;
+          return (
+            <button key={p} onClick={()=>{ setActiveProgram(p); setExpandedWeek(null); }}
+              style={{ padding:"8px 14px", borderRadius:"var(--border-radius-md)",
+                border: active ? `2px solid ${c.border}` : "0.5px solid var(--color-border-tertiary)",
+                background: active ? c.bg : "var(--color-background-primary)",
+                color: active ? c.text : "var(--color-text-primary)",
+                fontSize:13, fontWeight: active?500:400, cursor:"pointer" }}>
+              {progMeta[p].icon} {progMeta[p].label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Program header */}
+      <div style={{ background:color.bg, border:`0.5px solid ${color.border}`,
+        borderRadius:"var(--border-radius-lg)", padding:"0.85rem 1.1rem", marginBottom:"1rem" }}>
+        <div style={{ fontWeight:500, fontSize:14, color:color.text }}>
+          {progMeta[activeProgram].icon} {progMeta[activeProgram].label}
+        </div>
+        <div style={{ fontSize:12, color:color.text, opacity:0.8, marginTop:3 }}>
+          {progMeta[activeProgram].sub}
+        </div>
+        <div style={{ fontSize:11, color:color.text, opacity:0.65, marginTop:5 }}>
+          ✓ 2-week taper before every key race &nbsp;·&nbsp; ✓ 1-week recovery after every key/major race &nbsp;·&nbsp; ✓ Scheduled recovery at Wk 4-5 and Wk 22
+          {activeProgram===1 && " · ✓ Morton's neuroma: max 2×36km road long runs, soft surface preference, metatarsal pad"}
+        </div>
+      </div>
+
+      {/* Tag legend */}
+      <div style={{ display:"flex", flexWrap:"wrap", gap:5, marginBottom:"1rem" }}>
+        {Object.entries(TAG).map(([key, val]) => {
+          const count = tagCounts[key]||0;
+          if (!count) return null;
+          return (
+            <div key={key} style={{ display:"flex", alignItems:"center", gap:4,
+              padding:"2px 8px", borderRadius:"var(--border-radius-md)",
+              background:val.bg, border:`0.5px solid ${val.color}`,
+              fontSize:11, color:val.color, fontWeight:500 }}>
+              {val.label}
+              <span style={{ background:val.color, color:val.bg, borderRadius:3,
+                padding:"0 4px", fontSize:10 }}>{count}</span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Volume bar sparkline */}
+      <div style={{ marginBottom:"1.1rem" }}>
+        <div style={{ fontSize:11, color:"var(--color-text-secondary)", marginBottom:5 }}>
+          Weekly volume (km) · click bar to jump to week
+        </div>
+        <div style={{ display:"flex", alignItems:"flex-end", gap:2, height:72, overflowX:"auto", paddingBottom:16 }}>
+          {programData.map((w,i) => {
+            const h = w.vol > 0 ? Math.max(4, Math.round((w.vol/maxVol)*52)) : 3;
+            const tagInfo = TAG[w.tag];
+            const barColor = tagInfo ? tagInfo.color : color.accent;
+            const sel = expandedWeek===i;
+            return (
+              <div key={i} style={{ flex:"0 0 auto", width:20, display:"flex",
+                flexDirection:"column", alignItems:"center", cursor:"pointer" }}
+                onClick={()=>setExpandedWeek(sel?null:i)}
+                title={`Wk${w.wNum}: ${w.vol}km – ${w.phase}`}>
+                <div style={{ fontSize:8, color:"var(--color-text-secondary)", lineHeight:1, marginBottom:1 }}>{w.wNum}</div>
+                <div style={{ width:14, height:h, background:barColor, borderRadius:"2px 2px 0 0",
+                  opacity:sel?1:0.72, outline:sel?`2px solid ${barColor}`:undefined }} />
+                <div style={{ fontSize:7, color:"var(--color-text-secondary)", marginTop:1, lineHeight:1 }}>{w.vol||""}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Race calendar chips */}
+      <div style={{ marginBottom:"1.1rem" }}>
+        <div style={{ fontSize:11, color:"var(--color-text-secondary)", marginBottom:5 }}>Race calendar</div>
+        <div style={{ display:"flex", flexWrap:"wrap", gap:5 }}>
+          {RACES.filter(r=>r.programs.includes(activeProgram)).map((r,i) => {
+            const ti = r.type==="key" ? TAG.KEY_RACE : r.type==="team" ? TAG.TEAM : TAG.RACE;
+            return (
+              <div key={i} style={{ padding:"4px 9px", borderRadius:"var(--border-radius-md)",
+                background:ti.bg, border:`0.5px solid ${ti.color}`, fontSize:12 }}>
+                <div style={{ fontWeight:500, color:ti.color }}>
+                  {r.type==="key"?"⭐ ":r.type==="team"?"🤝 ":"🏁 "}{r.name}
+                </div>
+                <div style={{ color:"var(--color-text-secondary)", fontSize:11, marginTop:1 }}>
+                  {new Date(r.date).toLocaleDateString("en-CA",{month:"short",day:"numeric"})}
+                  {r.km>0?` · ${r.km}km`:""}
+                  {r.elev>0?` · ${r.elev}m↑`:""}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Week list */}
+      <div style={{ fontSize:12, color:"var(--color-text-secondary)", marginBottom:6 }}>
+        Weekly plan — click any row to expand
+      </div>
+      <div style={{ display:"flex", flexDirection:"column", gap:3 }}>
+        {programData.map((w,i) => {
+          const sel = expandedWeek===i;
+          const ti = TAG[w.tag] || TAG.BASE;
+          const isRace = ["KEY_RACE","RACE","TEAM"].includes(w.tag);
+          const isTaperRec = ["TAPER","RECOVERY"].includes(w.tag);
+
+          return (
+            <div key={i} style={{
+              border: sel ? `1.5px solid ${ti.color}` : `0.5px solid ${ti.color}55`,
+              borderRadius:"var(--border-radius-md)", overflow:"hidden" }}>
+
+              {/* Row */}
+              <div onClick={()=>setExpandedWeek(sel?null:i)}
+                style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 12px",
+                  background: sel ? ti.bg : isRace ? ti.bg+"99" : isTaperRec ? ti.bg+"77" : "var(--color-background-primary)",
+                  cursor:"pointer" }}>
+
+                <div style={{ fontSize:11, color:"var(--color-text-secondary)", minWidth:34, fontVariantNumeric:"tabular-nums" }}>
+                  {String(w.wNum).padStart(2,"0")}
+                </div>
+                <div style={{ fontSize:11, color:"var(--color-text-secondary)", minWidth:64 }}>
+                  {fmtDate(w.start)}
+                </div>
+
+                {/* Badge */}
+                <div style={{ padding:"2px 7px", borderRadius:4, background:ti.color, color:ti.bg,
+                  fontSize:10, fontWeight:500, minWidth:70, textAlign:"center", whiteSpace:"nowrap" }}>
+                  {ti.label}
+                </div>
+
+                <div style={{ fontSize:13, fontWeight:isRace?500:400, flex:1,
+                  color:isRace?ti.color:"var(--color-text-primary)",
+                  overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                  {w.phase}
+                </div>
+
+                {w.races.length>0 && (
+                  <div style={{ fontSize:13 }}>
+                    {w.tag==="KEY_RACE"?"⭐":w.tag==="TEAM"?"🤝":"🏁"}
+                  </div>
+                )}
+
+                <div style={{ fontSize:12, color:"var(--color-text-secondary)", minWidth:40, textAlign:"right",
+                  fontVariantNumeric:"tabular-nums" }}>
+                  {w.vol>0?`${w.vol}km`:"—"}
+                </div>
+                <div style={{ fontSize:11, color:"var(--color-text-secondary)", width:12 }}>{sel?"▲":"▼"}</div>
+              </div>
+
+              {/* Expanded */}
+              {sel && w.sessions && (
+                <div style={{ padding:"10px 12px", background:"var(--color-background-primary)",
+                  borderTop:`0.5px solid ${ti.color}` }}>
+
+                  {/* Race banner */}
+                  {w.races.map((r,ri)=>(
+                    <div key={ri} style={{ padding:"7px 10px", borderRadius:"var(--border-radius-md)",
+                      marginBottom:10, background:TAG[w.tag]?.bg||"#e6f1fb",
+                      border:`1px solid ${TAG[w.tag]?.color||"#378add"}` }}>
+                      <div style={{ fontWeight:500, fontSize:13, color:TAG[w.tag]?.color||"#185fa5" }}>
+                        {r.type==="key"?"⭐ KEY RACE: ":r.type==="team"?"🤝 TEAM RACE: ":"🏁 RACE: "}{r.name}
+                      </div>
+                      <div style={{ fontSize:12, color:"var(--color-text-secondary)", marginTop:2 }}>{r.note}</div>
+                    </div>
+                  ))}
+
+                  {/* Taper / Recovery callout */}
+                  {isTaperRec && (
+                    <div style={{ padding:"5px 9px", borderRadius:"var(--border-radius-md)", marginBottom:8,
+                      background:ti.bg, border:`0.5px solid ${ti.color}`,
+                      fontSize:12, color:ti.color, fontWeight:500 }}>
+                      {w.tag==="TAPER"
+                        ? "↓ Taper week — volume reduced, sharpness maintained. Trust the fitness."
+                        : "↑ Recovery week — no hard efforts. Adaptation happens here, not during work."}
+                    </div>
+                  )}
+
+                  {/* Session cards */}
+                  <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(188px,1fr))", gap:7 }}>
+                    {[["Tuesday",w.sessions.tue],["Thursday",w.sessions.thu],
+                      ["Friday (opt)",w.sessions.fri],["Saturday",w.sessions.sat],
+                      ["Sunday",w.sessions.sun]
+                    ].map(([day,s])=> s && (
+                      <div key={day} style={{ padding:"7px 9px",
+                        background:"var(--color-background-secondary)",
+                        borderRadius:"var(--border-radius-md)",
+                        borderLeft:`3px solid ${SESSION_COLOR[s.t]||"#888"}` }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", marginBottom:3 }}>
+                          <span style={{ fontSize:11, color:"var(--color-text-secondary)" }}>{day}</span>
+                          <span style={{ fontSize:10, padding:"1px 5px",
+                            background:(SESSION_COLOR[s.t]||"#888")+"22",
+                            color:SESSION_COLOR[s.t]||"#888",
+                            borderRadius:3, fontWeight:500 }}>{s.t}</span>
+                        </div>
+                        <div style={{ fontSize:12, color:"var(--color-text-primary)", lineHeight:1.5 }}>{s.d}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {w.sessions.notes && (
+                    <div style={{ marginTop:8, padding:"6px 9px",
+                      background:"var(--color-background-secondary)",
+                      borderRadius:"var(--border-radius-md)",
+                      fontSize:12, color:"var(--color-text-secondary)", fontStyle:"italic" }}>
+                      💡 {w.sessions.notes}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Footer */}
+      <div style={{ marginTop:"1.5rem", padding:"0.9rem 1rem",
+        background:"var(--color-background-secondary)", borderRadius:"var(--border-radius-lg)" }}>
+        <div style={{ fontSize:13, fontWeight:500, marginBottom:7 }}>Coaching philosophy</div>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))", gap:6,
+          fontSize:12, color:"var(--color-text-secondary)" }}>
+          <div><strong style={{ color:"var(--color-text-primary)" }}>Roche</strong> — 80% easy, joy, sustainable athlete identity</div>
+          <div><strong style={{ color:"var(--color-text-primary)" }}>Uphill Athlete</strong> — vertical accumulation, aerobic threshold, strength endurance</div>
+          <div><strong style={{ color:"var(--color-text-primary)" }}>Moehl</strong> — time on feet, technical trail, adventure mindset</div>
+          <div><strong style={{ color:"var(--color-text-primary)" }}>Koop</strong> — intensity periodization, race-specific intervals, fatigue management</div>
+        </div>
+        <div style={{ marginTop:8, fontSize:12, color:"var(--color-text-secondary)",
+          borderTop:"0.5px solid var(--color-border-tertiary)", paddingTop:7 }}>
+          <strong style={{ color:"var(--color-text-primary)" }}>Morton's neuroma (Prog 1):</strong> Max 2×36km road long runs (Wk9 + Wk12). Metatarsal pad in road shoe. Trail surface preferred for all long runs where possible. Monitor for numbness/burning — stop session if symptomatic, do not push through. Wide toe-box shoe on all road days.
+        </div>
+        <div style={{ marginTop:6, fontSize:12, color:"var(--color-text-secondary)" }}>
+          <strong style={{ color:"var(--color-text-primary)" }}>Beaver Flat local training (Prog 2):</strong> Dundas Valley (130m/loop), Niagara Escarpment trail, Rattlesnake Point, Devil's Glen — all within ~45min of Burlington. Every Saturday trail run should maximise vertical gain as direct Beaver Flat prep.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(React.createElement(TrainingPlan));
+  </script>
+</body>
+</html>
