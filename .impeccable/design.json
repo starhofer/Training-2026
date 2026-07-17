@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-16T00:00:00.000Z",
+  "title": "Design System: 2026 Training Programs",
+  "extensions": {
+    "colorMeta": {
+      "moss": { "role": "primary", "displayName": "Moss", "canonical": "oklch(0.52 0.18 132)", "darkModeValue": "oklch(0.70 0.17 132)" },
+      "race": { "role": "identity", "displayName": "Race / Star & Xavier", "canonical": "oklch(0.44 0.19 232)", "darkModeValue": "oklch(0.62 0.17 232)" },
+      "angela": { "role": "identity", "displayName": "Angela", "canonical": "oklch(0.38 0.17 150)", "darkModeValue": "oklch(0.58 0.15 150)" },
+      "taper": { "role": "identity", "displayName": "Taper / Gary", "canonical": "oklch(0.42 0.16 68)", "darkModeValue": "oklch(0.60 0.14 68)" },
+      "keyrace": { "role": "urgent", "displayName": "Key Race / Blaze", "canonical": "oklch(0.50 0.20 40)" },
+      "recovery": { "role": "category", "displayName": "Recovery", "canonical": "oklch(0.42 0.15 165)" },
+      "build": { "role": "category", "displayName": "Build", "canonical": "oklch(0.44 0.19 290)" },
+      "peak": { "role": "category", "displayName": "Peak", "canonical": "oklch(0.40 0.18 6)" },
+      "base": { "role": "category", "displayName": "Base", "canonical": "oklch(0.38 0.02 132)" },
+      "bg": { "role": "neutral", "displayName": "Bg", "canonical": "oklch(1.000 0.000 0)", "darkModeValue": "oklch(0.14 0.000 0)" },
+      "surface": { "role": "neutral", "displayName": "Surface", "canonical": "oklch(0.965 0.006 132)", "darkModeValue": "oklch(0.21 0.008 132)" },
+      "ink": { "role": "neutral", "displayName": "Ink", "canonical": "oklch(0.22 0.012 132)", "darkModeValue": "oklch(0.94 0.008 132)" },
+      "muted": { "role": "neutral", "displayName": "Muted", "canonical": "oklch(0.48 0.014 132)", "darkModeValue": "oklch(0.66 0.012 132)" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Page title, set beside the logo mark. 800 weight, -0.02em tracking." },
+      "body": { "displayName": "Body", "purpose": "Session descriptions. 13px/1.5, bumped up from 12px for readability." },
+      "label": { "displayName": "Label", "purpose": "Badges, pills, week numbers, dates. 700 weight so it holds up at small sizes on solid fills." }
+    },
+    "shadows": [],
+    "motion": [
+      { "name": "ease-standard", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Default ease-out for tab/hover/expand transitions." }
+    ],
+    "breakpoints": []
+  },
+  "components": [
+    {
+      "name": "Monogram Badge (small)",
+      "kind": "custom",
+      "refersTo": "badge-sm",
+      "description": "24px solid-color circle with a bold white initial; sits inline in the tab bar. Replaces the illustrated zodiac-animal icon set.",
+      "html": "<span class=\"ds-badge ds-badge-sm\">S</span>",
+      "css": ".ds-badge{display:inline-flex;align-items:center;justify-content:center;border-radius:50%;font-weight:800;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif} .ds-badge-sm{width:24px;height:24px;font-size:11px;background:oklch(0.44 0.19 232)}"
+    },
+    {
+      "name": "Monogram Badge (large, inverted)",
+      "kind": "custom",
+      "refersTo": "badge-lg",
+      "description": "56px white circle with an identity-colored initial; used inside the solid-fill runner header card, where inversion (white circle vs. white text elsewhere) keeps it legible.",
+      "html": "<span class=\"ds-badge ds-badge-lg\">S</span>",
+      "css": ".ds-badge-lg{width:56px;height:56px;font-size:22px;letter-spacing:-0.01em;background:#fff;color:oklch(0.44 0.19 232)}"
+    },
+    {
+      "name": "Active Tab",
+      "kind": "nav",
+      "refersTo": "tab-active",
+      "description": "Selected runner tab: solid identity-color pill fill, white text, inverted badge.",
+      "html": "<button class=\"ds-tab ds-tab-active\"><span class=\"ds-badge ds-badge-sm ds-badge-inv\">S</span>Star</button>",
+      "css": ".ds-tab{display:inline-flex;align-items:center;gap:8px;padding:5px 16px 5px 5px;border-radius:999px;border:1.5px solid oklch(0.88 0.008 132);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:background .2s cubic-bezier(.16,1,.3,1),color .2s cubic-bezier(.16,1,.3,1)} .ds-tab-active{background:oklch(0.44 0.19 232);border-color:oklch(0.44 0.19 232);color:#fff} .ds-badge-inv{background:#fff;color:oklch(0.44 0.19 232)} .ds-tab:focus-visible{outline:2px solid oklch(0.52 0.18 132);outline-offset:2px}"
+    },
+    {
+      "name": "Runner Header Card",
+      "kind": "card",
+      "refersTo": "header-card",
+      "description": "Solid gradient-fill card (identity color to its deep variant), white text, large inverted badge. Replaces the previous pale-tint bordered card.",
+      "html": "<div class=\"ds-ph\"><span class=\"ds-badge ds-badge-lg\">S</span><div><h3>Star</h3><p>Georgina Marathon Sep 13</p></div></div>",
+      "css": ".ds-ph{display:flex;align-items:center;gap:16px;border-radius:16px;padding:1.1rem 1.25rem;color:#fff;background:linear-gradient(155deg,oklch(0.44 0.19 232),oklch(0.30 0.16 232))} .ds-ph h3{font-size:18px;font-weight:800;letter-spacing:-0.01em;margin-bottom:4px} .ds-ph p{font-size:13px;opacity:.92}"
+    },
+    {
+      "name": "Key Race Pill",
+      "kind": "chip",
+      "refersTo": "key-race-pill",
+      "description": "Solid-fill badge marking a key race in the tag legend, race calendar, and week badge.",
+      "html": "<span class=\"ds-pill-keyrace\">Key Race</span>",
+      "css": ".ds-pill-keyrace{display:inline-block;background:oklch(0.50 0.20 40);color:#fff;font-size:11px;font-weight:700;padding:4px 11px;border-radius:999px}"
+    },
+    {
+      "name": "Session Type Pill",
+      "kind": "chip",
+      "refersTo": "session-type-pill",
+      "description": "Small solid-fill pill naming a session's type (Speed, Hills, Trail Long, etc). Replaces the previous colored border-left stripe on session cards — an absolute-ban anti-pattern.",
+      "html": "<span class=\"ds-pill-type\" style=\"--c:oklch(0.44 0.19 232)\">Speed</span>",
+      "css": ".ds-pill-type{display:inline-block;padding:2px 8px;border-radius:999px;font-size:9.5px;font-weight:700;background:var(--c);color:#fff}"
+    },
+    {
+      "name": "Week Row",
+      "kind": "custom",
+      "refersTo": "week-row",
+      "description": "Collapsed week list item; expands in place on click. The week badge is a solid category-color pill with white text.",
+      "html": "<div class=\"ds-week-row\"><span class=\"ds-week-num\">W07</span><span class=\"ds-wb\" style=\"background:oklch(0.44 0.19 232)\">Race</span><span class=\"ds-week-plan\">Long run 24km</span></div>",
+      "css": ".ds-week-row{display:flex;align-items:center;gap:8px;background:oklch(1 0 0);border:1px solid oklch(0.88 0.008 132);border-radius:10px;padding:8px 12px;cursor:pointer} .ds-week-num{font-size:11px;color:oklch(0.48 0.014 132)} .ds-wb{padding:3px 8px;border-radius:999px;font-size:10px;font-weight:700;color:#fff} .ds-week-plan{font-size:13px;font-weight:500;color:oklch(0.22 0.012 132)}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Trailhead, at full saturation",
+    "overview": "This is the second pass on the same idea: a trailhead at first light, before a long climb. The first pass applied the concept as a light tint-swap and it read as barely different from the original beige dashboard. This version applies it with real conviction: solid saturated color fills carry the runner headers, the active tab, and every category pill, instead of pale washes. The page background stays pure white (light) / near-black (dark); restraint lives in the architecture, not in how boldly the brand colors get used once they appear. Each runner keeps a monogram badge instead of an illustrated mascot, and a small mountain-peak logo mark now sits by the page title.",
+    "keyCharacteristics": [
+      "Solid, saturated color fills on runner headers, the active tab, and every category pill",
+      "Pure white / near-black page background; boldness lives in the components, not the canvas",
+      "Monogram badges replace illustrated icons; a small logo mark anchors the title",
+      "No side-stripe borders anywhere — session type moved from a colored border to a solid pill",
+      "Flat by default; the header card's gradient fill is the one deliberate exception"
+    ],
+    "rules": [
+      { "name": "The Solid-Fill Rule", "body": "Every category and identity color is a solid fill with white text, not a pale tint with colored text. A tint reads as decoration; a fill reads as a decision.", "section": "colors" },
+      { "name": "The One-Family Rule", "body": "Every weight in this system comes from the same font stack. Hierarchy is built with size and weight, never a second typeface.", "section": "typography" },
+      { "name": "The Flat-by-Default Rule", "body": "Surfaces never cast a shadow. The header card's gradient fill is the one deliberate exception to pure-flat, and it never appears on anything else.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do use solid, saturated fills for every identity and category color — white text on top, not tinted-background-plus-colored-text.",
+      "Do keep Bg pure white (light) / pure near-black (dark).",
+      "Do use the monogram badge system consistently; never reintroduce per-runner illustrated icons.",
+      "Do use a solid-fill pill for session type; never a colored border on any card."
+    ],
+    "donts": [
+      "Don't revert to pale tint chips/badges — that was the exact complaint that triggered this redesign.",
+      "Don't build a corporate-SaaS-dashboard look.",
+      "Don't use border-left/border-right as a colored accent stripe anywhere.",
+      "Don't introduce a cream/sand/beige tinted background.",
+      "Don't pair a second typeface."
+    ]
+  }
+}
